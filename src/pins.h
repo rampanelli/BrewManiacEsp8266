@@ -99,7 +99,19 @@ byte btnReadPin(byte pin)
 
 #endif
 
+
 // Heater, Pump, Buzz are OUTPUTs
+
+#if PWM_HEAT_CONTROL
+void heatSetValue(float output) // 0-255
+{
+	//2ms/20ms = 10% full on
+	//1m/20ms  =  5% off
+	float value = 1023.0 * ( 0.05 + 0.05 * output/255.0 );
+	analogWrite(HeatControlPin,(int)value);
+}
+
+#else
 inline void setHeaterOut(byte v)
 {
 #if HEATER_USE_EXT != true
@@ -108,6 +120,7 @@ inline void setHeaterOut(byte v)
 	pcf8574.write(ExHeatControlPin,v);
 #endif
 }
+#endif
 
 inline void setPumpOut(byte v)
 {
@@ -162,10 +175,14 @@ void initIOPins(void)
 	_portvalue=0;
 #endif
 
+#if PWM_HEAT_CONTROL
+	analogWriteFreq(50); // 20ms/50Hz
+#else
 #if HEATER_USE_EXT != true
 	pinMode (HeatControlPin, OUTPUT);
 #endif
 	setHeaterOut(LOW);
+#endif
 
 #if PUMP_USE_EXT != true
 	pinMode (PumpControlPin, OUTPUT);

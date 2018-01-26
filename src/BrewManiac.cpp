@@ -1255,6 +1255,44 @@ void saveTunning(void)
 unsigned long lastTime;
 #endif
 
+
+#if PWM_HEAT_CONTROL
+#if SpargeHeaterSupport == true
+#error "SpargeHeater not Supported for PWM heat"
+#endif
+
+void heatPhysicalOn(void)
+{
+	if(!_physicalHeattingOn)
+	{
+		_physicalHeattingOn=true;
+		// a chance to light the pilot flame.
+		heatSetValue(0); 
+		uiHeatingStatus(HeatingStatus_On);
+		wiReportHeater(HeatingStatus_On);
+	}
+}
+
+void heatPhysicalOff(void)
+{
+	if(_physicalHeattingOn)
+	{
+		// a chance to put off the pilot flame.
+		heatSetValue(0);
+		_physicalHeattingOn=false;
+	}
+	if(gIsHeatOn){
+		uiHeatingStatus(HeatingStatus_On_PROGRAM_OFF);
+		wiReportHeater(HeatingStatus_On_PROGRAM_OFF);
+	}else{
+		uiHeatingStatus(HeatingStatus_Off);
+		wiReportHeater(HeatingStatus_Off);
+	}
+}
+
+
+#else //#if PWM_HEAT_CONTROL
+
 void heatPhysicalOn(void)
 {
 	if(!_physicalHeattingOn)
@@ -1321,6 +1359,8 @@ void heatPhysicalOff(void)
 	}
 #endif
 }
+
+#endif //#if PWM_HEAT_CONTROL
 
 
 #if SpargeHeaterSupport == true
@@ -1528,11 +1568,16 @@ void heatLoadParameters(void)
 void heatOff(void)
 {
 	gIsHeatOn = false;
+
+#if PWM_HEAT_CONTROL
+	heatPhysicalOff();
+#else
 	#if SpargeHeaterSupport
 	requestHeaterOff();
 	#else
 	heatPhysicalOff();
 	#endif
+#endif
 }
 
 #if PwmHeatingSupport
@@ -1565,22 +1610,31 @@ void heatOn(bool pidmode=true)
 	// so that the correct symbol can be shown
 	_windowStartTime=millis();
 
+#if PWM_HEAT_CONTROL
+	heatPhysicalOn();
+#else
+
 	#if SpargeHeaterSupport
 	requestHeaterOff();
 	#else
 	heatPhysicalOff();
 	#endif
+#endif
 }
 
 void heatProgramOff(void)
 {
 	gIsHeatProgramOff=true;
 
+#if PWM_HEAT_CONTROL
+	heatPhysicalOff();
+#else
 	#if SpargeHeaterSupport
 	requestHeaterOff();
 	#else
 	heatPhysicalOff();
 	#endif
+#endif
 }
 
 float round025(float num)
@@ -1597,10 +1651,14 @@ void heaterControl(void)
 
 	if(IS_TEMP_INVALID(gCurrentTemperature)) {
 		if(_physicalHeattingOn) {
+#if PWM_HEAT_CONTROL
+		heatSetValue(0);
+#else
 #if SpargeHeaterSupport
 			requestHeaterOff();
 #else
 			heatPhysicalOff();
+#endif
 #endif
 		}
 		return;
@@ -1671,6 +1729,9 @@ void heaterControl(void)
         DebugPort.println(pidOutput);
 #endif
 
+#if PWM_HEAT_CONTROL
+	heatSetValue(pidOutput);
+#else 
 	// PWM
   	unsigned long now = millis();
   	if (now - _windowStartTime > (unsigned int) _heatWindowSize * 250)
@@ -1702,6 +1763,8 @@ void heaterControl(void)
   			#endif
   		}
   	}
+#endif
+
 } // end of heaterControl
 
 void heatThread(void)
