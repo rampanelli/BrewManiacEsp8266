@@ -3,6 +3,16 @@
 
 #include <pcf8574_esp.h>
 
+#if PWM_HEAT_CONTROL
+// 50Hz
+#define PWM_Frequency 50
+// 5% output: off
+// 10% output: full
+#define PWM_Off_Duty 0.05 
+#define PWM_Max_Duty 0.10
+
+#endif
+
 /*
 #define NODEMCU_PIN_A0 17
 #define NODEMCU_PIN_D0 16	Buzzer
@@ -107,7 +117,7 @@ void heatSetValue(float output) // 0-255
 {
 	//2ms/20ms = 10% full on
 	//1m/20ms  =  5% off
-	float value = 1023.0 * ( 0.05 + 0.05 * output/255.0 );
+	float value = 1023.0 * ( PWM_Min_Duty + (PWM_Max_Duty - PWM_Min_Duty) * output/255.0 );
 	analogWrite(HeatControlPin,(int)value);
 }
 
@@ -176,7 +186,7 @@ void initIOPins(void)
 #endif
 
 #if PWM_HEAT_CONTROL
-	analogWriteFreq(50); // 20ms/50Hz
+	analogWriteFreq(PWM_Frequency);
 #else
 #if HEATER_USE_EXT != true
 	pinMode (HeatControlPin, OUTPUT);
